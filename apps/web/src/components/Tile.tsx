@@ -1,17 +1,22 @@
 import React, { useEffect, useState } from "react";
+import useHttp from "../hooks/useHttp";
+import IResponseType from "@repo/interfaces/responseType";
 
 const Tile: React.FC = () => {
 	const [status, setStatus] = useState<"pending" | "fullfiled" | "rejected">("pending");
+	const http = useHttp();
 
 	useEffect(() => {
-		const timer = setTimeout(() => {
-			setStatus("fullfiled");
-			console.log("set");
-		}, 3000);
+		const ref = setTimeout(async () => {
+			const res = (await http.get("/test")).data as IResponseType;
+			if (res.status) {
+				setStatus("fullfiled");
+			}
+		}, 1000);
 		return () => {
-			clearTimeout(timer);
+			clearTimeout(ref);
 		};
-	}, []);
+	}, [http]);
 
 	let bg = "bg-blue-500";
 	switch (status) {
@@ -26,7 +31,7 @@ const Tile: React.FC = () => {
 			break;
 	}
 
-	return <div className={`w-5 h-5 rounded-sm m-1 ${bg}`} />;
+	return <div className={`w-5 h-5 rounded-sm m-1 transition-colors ${bg}`} />;
 };
 
 export default Tile;

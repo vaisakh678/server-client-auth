@@ -2,9 +2,9 @@ import { Request, Response } from "express";
 import IResponseType from "@repo/interfaces/responseType";
 import User from "../models/User";
 import sha256 from "../utils/sha256";
-import jwt from "jsonwebtoken";
+import jwt, { TokenExpiredError } from "jsonwebtoken";
 import md5 from "../utils/md5";
-import { loginSchema, registerSchema } from "@repo/common/config";
+import { IUserPayload, loginSchema, registerSchema } from "@repo/common/config";
 import { ZodError } from "zod";
 
 export const login = async (req: Request, res: Response): Promise<Response<IResponseType>> => {
@@ -14,26 +14,27 @@ export const login = async (req: Request, res: Response): Promise<Response<IResp
 		if (!user)
 			return res.json({
 				status: false,
-				errorMessage: { message: "Invalid credentials!." },
+				message: { error: "Invalid credentials!." },
 			});
 		const playload = {
 			userId: user._id,
 			email: user.email,
 			fullName: user.fullName,
 		};
-		const accessToken = jwt.sign(playload, "fjsdljfdksjflsdf");
-		const refreshToken = jwt.sign(playload, "jfoidjsifjosjgh");
+		const accessToken = jwt.sign(playload, "fjsdljfdksjflsdf", { expiresIn: "30s" });
+		const refreshToken = jwt.sign(playload, "jfoidjsifjosjgh", { expiresIn: "60s" });
 		user.lastLoggedIn = new Date();
 		user.refreshToken = md5(refreshToken);
+		await user.save();
 		const cookieOptions = {
 			httpOnly: true,
-			path: "/auth/refresh",
+			path: "/api/v1/auth/refresh",
 			secure: true,
 			sameSite: true,
 		};
 		return res
 			.status(200)
-			.cookie("auth", { refreshToken }, cookieOptions)
+			.cookie("refreshToken", refreshToken, cookieOptions)
 			.json({
 				status: true,
 				message: { message: "Successfully logged in!." },
@@ -82,28 +83,40 @@ export const register = async (req: Request, res: Response): Promise<Response<IR
 
 export const refresh = async (req: Request, res: Response): Promise<Response<IResponseType>> => {
 	try {
-		console.log("hello");
-		const cookieValue = req.cookies["accessToken"];
-		const user = jwt.decode(cookieValue);
-		if (!user)
+		const refreshToken = req.cookies["refreshToken"];
+		const userDecode = jwt.verify(refreshToken, "jfoidjsifjosjgh") as IUserPayload;
+		if (!userDecode)
 			return res.status(403).json({
 				status: false,
-				message: { message: "Token not found!" },
+				message: { message: "Token is not valid!." },
 			});
+		const user = await User.findOne({ _id: userDecode.userId, refreshToken: md5(refreshToken) });
+		if (!user) {
+			return res.status(403).json({
+				status: false,
+				message: { errorMessage: "Failed to authenticate!." },
+			});
+		}
+		const playload = {
+			userId: user._id,
+			email: user.email,
+			fullName: user.fullName,
+		};
+		const accessToken = jwt.sign(playload, "fjsdljfdksjflsdf", { expiresIn: "30s" });
 		return res.json({
-			status: false,
-			message: { errorMessage: "Failed to authenticate!." },
+			status: true,
+			data: { accessToken: accessToken },
+			message: { message: "Authenticated" },
 		});
 	} catch (error) {
-		if (error instanceof ZodError)
-			return res.status(417).json({
+		if (error instanceof TokenExpiredError)
+			return res.status(403).json({
 				status: false,
-				error: error.errors,
-				message: { error: "Validation error!." },
+				message: { error: "Invalid token!." },
 			});
 		return res.json({
 			status: false,
-			message: { errorMessage: "Something went wrong!." },
+			message: { error: "Something went wrong!." },
 		});
 	}
 };

@@ -2,7 +2,7 @@ import React from "react";
 import Tile from "../components/Tile";
 
 const Home: React.FC = () => {
-	const tiles = 20;
+	const tiles = 10;
 	return (
 		<div className="w-screen min-h-dvh flex justify-center items-center">
 			{Array(tiles)

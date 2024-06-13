@@ -1,40 +1,82 @@
-import React from "react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "../components/ui/label";
-import { Checkbox } from "../components/ui/checkbox";
+import React, { useState } from "react";
+import { FormikHelpers, useFormik } from "formik";
+import { toFormikValidationSchema } from "zod-formik-adapter";
+import { loginSchema, loginSchemaType } from "@repo/common/config";
+import { Button, Checkbox, FormControlLabel, Paper, Stack, TextField, Typography } from "@mui/material";
+import useHttpPublic from "../hooks/useHttpPublic";
+import { useNavigate } from "react-router-dom";
+import IResponseType from "@repo/interfaces/responseType";
 
 const Login: React.FC = () => {
+	const httpPublic = useHttpPublic();
+	const navigate = useNavigate();
+
+	const [error, setError] = useState("");
+
+	const handleLogin = async (value: loginSchemaType, { setSubmitting }: FormikHelpers<loginSchemaType>) => {
+		try {
+			const res = (await httpPublic.post("/auth/login", value, { withCredentials: true })).data as IResponseType;
+			if (res.status) {
+				localStorage.setItem("accessToken", res.data.accessToken);
+				navigate("/");
+			} else {
+				setError(res.message?.error ?? "Something went wrong!.");
+			}
+		} catch (error) {
+			setError("Something went wrong!.");
+		} finally {
+			setSubmitting(true);
+		}
+	};
+
+	const formik = useFormik({
+		initialValues: {
+			email: "",
+			password: "",
+		},
+		validationSchema: toFormikValidationSchema(loginSchema),
+		onSubmit: handleLogin,
+	});
+
+	const { handleBlur, handleChange, errors, touched, isSubmitting } = formik;
+
 	return (
-		<div className="w-screen min-h-dvh flex justify-center items-center">
-			<Card className="w-[350px]">
-				<CardHeader>
-					<CardTitle>Login</CardTitle>
-					<CardDescription>Please login to continue.</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<form>
-						<div className="w-full space-y-2">
-							<div className="space-y-1">
-								<Label htmlFor="email">Email</Label>
-								<Input name="email" id="email" />
-							</div>
-							<div className="space-y-1">
-								<Label htmlFor="password">Password</Label>
-								<Input name="password" id="password" />
-							</div>
-							<div className="space-x-2 flex items-center">
-								<Checkbox name="isRemembered" id="isRemembered" />
-								<Label htmlFor="isRemembered">remember</Label>
-							</div>
-						</div>
-					</form>
-				</CardContent>
-				<CardFooter>
-					<Button>Login</Button>
-				</CardFooter>
-			</Card>
+		<div className="min-h-dvh w-screen flex justify-center items-center">
+			<Paper sx={{ maxWidth: 320, width: "100%", p: 2, py: 3 }} variant="outlined">
+				<Typography variant="h4" sx={{ mb: 5 }}>
+					Login
+				</Typography>
+				<Stack spacing={2}>
+					<TextField
+						size="small"
+						label="email"
+						name="email"
+						onChange={handleChange}
+						onBlur={handleBlur}
+						error={!!(touched.email && errors.email)}
+						helperText={touched.email && errors.email}
+					/>
+					<TextField
+						size="small"
+						label="password"
+						type="password"
+						name="password"
+						onChange={handleChange}
+						onBlur={handleBlur}
+						error={!!(touched.password && errors.password)}
+						helperText={touched.password && errors.password}
+					/>
+					<Stack>
+						<FormControlLabel sx={{ mt: -1, mb: -1 }} control={<Checkbox defaultChecked />} label="remember me" />
+					</Stack>
+					<Button variant="contained" disabled={isSubmitting} onClick={() => formik.handleSubmit()} disableElevation>
+						Login
+					</Button>
+					<Typography color={"error"} fontSize={"14px"} textAlign={"center"}>
+						{error}
+					</Typography>
+				</Stack>
+			</Paper>
 		</div>
 	);
 };
