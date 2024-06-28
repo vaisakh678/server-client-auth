@@ -109,12 +109,13 @@ export const refresh = async (req: Request, res: Response): Promise<Response<IRe
 			message: { message: "Authenticated" },
 		});
 	} catch (error) {
-		if (error instanceof TokenExpiredError)
+		if (error instanceof TokenExpiredError) {
 			return res.status(403).json({
 				status: false,
 				message: { error: "Invalid token!." },
 			});
-		return res.json({
+		}
+		return res.status(403).json({
 			status: false,
 			message: { error: "Something went wrong!." },
 		});

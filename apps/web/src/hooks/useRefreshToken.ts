@@ -20,7 +20,7 @@ const useRefreshToken = () => {
 		if (!isRefreshing) {
 			isRefreshing = true;
 			try {
-				const resp = (await httpPublic.get("/auth/refresh", { withCredentials: true })).data as IResponseType;
+				const resp = (await httpPublic.get<IResponseType>("/auth/refresh", { withCredentials: true })).data;
 				const accessToken = resp.data.accessToken;
 				onTokenRefreshed(accessToken);
 				isRefreshing = false;
@@ -31,9 +31,7 @@ const useRefreshToken = () => {
 			}
 		} else {
 			return new Promise((resolve) => {
-				addRefreshSubscriber((token: string) => {
-					resolve(token);
-				});
+				addRefreshSubscriber(resolve);
 			});
 		}
 	};

@@ -1,28 +1,29 @@
 import React, { useState } from "react";
 import { FormikHelpers, useFormik } from "formik";
 import { toFormikValidationSchema } from "zod-formik-adapter";
-import { loginSchema, loginSchemaType } from "@repo/common/config";
+import { registerSchemaType, registerSchema } from "@repo/common/config";
 import { Button, Checkbox, FormControlLabel, Paper, Stack, TextField, Typography } from "@mui/material";
 import useHttpPublic from "../hooks/useHttpPublic";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import IResponseType from "@repo/interfaces/responseType";
 
-const Login: React.FC = () => {
+const Signup: React.FC = () => {
 	const httpPublic = useHttpPublic();
 	const navigate = useNavigate();
 
 	const [error, setError] = useState("");
 
-	const handleLogin = async (value: loginSchemaType, { setSubmitting }: FormikHelpers<loginSchemaType>) => {
+	const handleSignup = async (value: registerSchemaType, { setSubmitting }: FormikHelpers<registerSchemaType>) => {
 		try {
-			const res = (await httpPublic.post("/auth/login", value, { withCredentials: true })).data as IResponseType;
+			setError("");
+			const res = (await httpPublic.post("/auth/register", value, { withCredentials: true })).data as IResponseType<registerSchemaType>;
 			if (res.status) {
-				localStorage.setItem("accessToken", res.data.accessToken);
 				navigate("/");
 			} else {
 				setError(res.message?.error ?? "Something went wrong!.");
 			}
 		} catch (error) {
+			console.log(error);
 			setError("Something went wrong!.");
 		} finally {
 			setSubmitting(true);
@@ -31,11 +32,13 @@ const Login: React.FC = () => {
 
 	const formik = useFormik({
 		initialValues: {
+			fullName: "",
 			email: "",
 			password: "",
+			confirmPassword: "",
 		},
-		validationSchema: toFormikValidationSchema(loginSchema),
-		onSubmit: handleLogin,
+		validationSchema: toFormikValidationSchema(registerSchema),
+		onSubmit: handleSignup,
 	});
 
 	const { handleBlur, handleChange, errors, touched, isSubmitting } = formik;
@@ -44,12 +47,21 @@ const Login: React.FC = () => {
 		<div className="min-h-dvh w-screen flex justify-center items-center">
 			<Paper sx={{ maxWidth: 320, width: "100%", p: 2, py: 3 }} variant="outlined">
 				<Typography variant="h4" sx={{ mb: 5 }}>
-					Login
+					Signup
 				</Typography>
 				<Stack spacing={2}>
 					<TextField
 						size="small"
-						label="email"
+						label="FullName"
+						name="fullName"
+						onChange={handleChange}
+						onBlur={handleBlur}
+						error={!!(touched.fullName && errors.fullName)}
+						helperText={touched.fullName && errors.fullName}
+					/>
+					<TextField
+						size="small"
+						label="Email"
 						name="email"
 						onChange={handleChange}
 						onBlur={handleBlur}
@@ -58,7 +70,7 @@ const Login: React.FC = () => {
 					/>
 					<TextField
 						size="small"
-						label="password"
+						label="Password"
 						type="password"
 						name="password"
 						onChange={handleChange}
@@ -66,20 +78,22 @@ const Login: React.FC = () => {
 						error={!!(touched.password && errors.password)}
 						helperText={touched.password && errors.password}
 					/>
+					<TextField
+						size="small"
+						label="Conform password"
+						type="password"
+						name="confirmPassword"
+						onChange={handleChange}
+						onBlur={handleBlur}
+						error={!!(touched.confirmPassword && errors.confirmPassword)}
+						helperText={touched.confirmPassword && errors.confirmPassword}
+					/>
 					<Stack>
 						<FormControlLabel sx={{ mt: -1, mb: -1 }} control={<Checkbox defaultChecked />} label="remember me" />
 					</Stack>
 					<Button variant="contained" disabled={isSubmitting} onClick={() => formik.handleSubmit()} disableElevation>
-						Login
+						Submit
 					</Button>
-					<Typography fontSize={"14px"} textAlign="center">
-						Dont have an account?
-						<Link to={"/signup"} className="text-blue-600">
-							{" "}
-							Signup
-						</Link>{" "}
-						here.
-					</Typography>
 					<Typography color={"error"} fontSize={"14px"} textAlign={"center"}>
 						{error}
 					</Typography>
@@ -89,5 +103,5 @@ const Login: React.FC = () => {
 	);
 };
 
-export default Login;
+export default Signup;
 
